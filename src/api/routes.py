@@ -2,7 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db, User, Events
+from api.models import db, User, Events, Contacts
 from api.utils import generate_sitemap, APIException
 
 api = Blueprint('api', __name__)
@@ -128,4 +128,58 @@ def delete_event(event_id):
     db.session.commit()
     response_body = {
         "message": "Event deleted correctly"}    
+    return jsonify(response_body), 200
+
+# CONTACTS
+
+@api.route('/contacts', methods=['GET'])
+def get_all_contacts():
+    contacts = Contacts.query.all()
+    results = [contact.serialize() for contact in contacts]
+    response_body = {'message': 'OK',
+                     'total_records': len(results),
+                     'results': results}
+    return jsonify(response_body), 200
+
+@api.route('/contact/<contact_id>', methods=['GET'])
+def get_contacts_by_id(contact_id):
+    print(contact_id)
+    contact = Contacts.query.get(contact_id)
+    print(contact)
+    return jsonify(contact.serialize()), 200
+
+@api.route('/contact/register', methods=['POST'])
+def create_contact():
+    body = request.get_json()
+    new_contact = Contacts(email=body["email"], user_id=body["user_id"])
+    print(body)
+    print(new_contact)
+    db.session.add(new_contact)
+    db.session.commit()
+    return jsonify(new_contact.serialize()), 200
+
+@api.route('/contacts/<int:contact_id>', methods=['PUT'])
+def modify_contact(contact_id):
+    contact = Contacts.query.get(contact_id)
+    if contact is None:
+        raise APIException('Contact not found', status_code=404)
+
+    contact.email = request.json.get('email', contact.email)
+    contact.user_id = request.json.get('password', contact.user_id)
+    db.session.commit()
+
+    response_body = {'email': contact.email,
+                     'user_id': contact.user_id}
+
+    return jsonify(response_body), 200
+
+@api.route('/contacts/<int:contact_id>', methods=['DELETE'])
+def delete_contact(contact_id):
+    contact = Contacts.query.get(contact_id)
+    if contact is None:
+        raise APIException('Contact not found', status_code=404)
+    db.session.delete(contact)
+    db.session.commit()
+    response_body = {
+        "message": "Contact deleted correctly"}    
     return jsonify(response_body), 200
